@@ -18,8 +18,8 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 # 导入本地模块
-from .datasets import DigitsDataset
-from .models import (
+from datasets import DigitsDataset
+from models import (
     Critic,
     CriticWithMinibatchDiscrimination,
     Discriminator,
@@ -28,8 +28,8 @@ from .models import (
     create_wgan_mbd_qgan_generator,
     create_wgan_qgan_generator,
 )
-from .quantum_circuits import setup_classic_quantum_circuit, setup_wgan_quantum_circuit
-from .quantum_circuits import (
+from quantum_circuits import setup_classic_quantum_circuit, setup_wgan_quantum_circuit
+from quantum_circuits import (
     setup_wgan_mbd_quantum_circuit as setup_wgan_quantum_circuit_mbd,
 )
 
@@ -189,7 +189,7 @@ def train(config):
             config["batch_size"], 1, config["image_size"], config["image_size"]
         ),
         normalize=True,
-        range=normalize_range,
+        value_range=normalize_range,
     )
     writer.add_image("Real Samples", img_grid_real, 0)
 
@@ -518,7 +518,7 @@ def train(config):
                     img_grid_gen = torchvision.utils.make_grid(
                         test_images.view(8, 1, image_size, image_size),
                         normalize=True,
-                        range=normalize_range,
+                        value_range=normalize_range,
                     )
                     writer.add_image("Generated Images", img_grid_gen, global_step)
                     generator.train()  # 恢复训练模式
@@ -598,9 +598,9 @@ config_improved = {
     "n_a_qubits": 1,
     "q_depth": 4,
     "n_generators": 4,
-    "lrG": 0.1,  # 降低学习率可能有助于稳定
+    "lrG": 0.1,
     "lrD": 0.01,
-    "num_iter": 5000,  # 可能需要更多迭代
+    "num_iter": 5000,
     "optimizer": "Adam",  # 尝试Adam
     "betas": (0.5, 0.999),
     "dropout_rate": 0.3,
@@ -658,7 +658,7 @@ config_wgan_gp_mbd = {
     "dropout_rate": 0.3,
     "mb_in_features": 32,
     "mb_out_features": 10,
-    "mb_intermediate_features": 32, 
+    "mb_intermediate_features": 32,
     "seed": 42,
     "use_scheduler": True,
     "scheduler_type": "CosineAnnealingLR",
@@ -694,8 +694,5 @@ if __name__ == "__main__":
         exit()
 
     print(f"--- 使用配置: {args.config} ---")
-    # 打印配置信息（可选）
-    # import json
-    # print(json.dumps(config_to_run, indent=2))
 
     train(config_to_run)

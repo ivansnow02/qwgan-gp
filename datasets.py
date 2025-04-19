@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import Dataset
 import numpy as np
 
+
 class DigitsDataset(Dataset):
     """PyTorch数据集，用于手写数字识别数据集"""
 
@@ -46,7 +47,7 @@ class DigitsDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        image = self.images[idx] # 已归一化
+        image = self.images[idx]  # 已归一化
         image = np.array(image, dtype=np.float32).reshape(8, 8)
 
         if self.transform:

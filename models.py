@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
-import pennylane as qml
 
 # --- Discriminators (for Classic QGAN variants) ---
 
+
 class Discriminator(nn.Module):
     """经典QGAN的全连接判别器"""
+
     def __init__(self, image_size=8):
         super().__init__()
         input_features = image_size * image_size
@@ -23,8 +24,10 @@ class Discriminator(nn.Module):
         x = x.view(x.size(0), -1)
         return self.model(x)
 
+
 class ImprovedDiscriminator(nn.Module):
     """带有LeakyReLU和Dropout的改进判别器"""
+
     def __init__(self, image_size=8, dropout_rate=0.3):
         super().__init__()
         input_features = image_size * image_size
@@ -44,10 +47,13 @@ class ImprovedDiscriminator(nn.Module):
         x = x.view(x.size(0), -1)
         return self.model(x)
 
+
 # --- Critics (for WGAN-GP variants) ---
+
 
 class Critic(nn.Module):
     """WGAN-GP的基础评论家网络"""
+
     def __init__(self, image_size=8, dropout_rate=0.3):
         super().__init__()
         input_features = image_size * image_size
@@ -63,7 +69,7 @@ class Critic(nn.Module):
             nn.Linear(64, 32),
             nn.LayerNorm(32),
             nn.LeakyReLU(0.2),
-            nn.Linear(32, 1) # WGAN输出层无激活函数
+            nn.Linear(32, 1),  # WGAN输出层无激活函数
         )
         self.apply(self._init_weights)
 
@@ -78,8 +84,10 @@ class Critic(nn.Module):
         x = x.view(x.size(0), -1)
         return self.model(x)
 
+
 class MinibatchDiscrimination(nn.Module):
     """Minibatch Discrimination层"""
+
     def __init__(self, in_features, out_features, intermediate_features=16):
         super().__init__()
         self.in_features = in_features
@@ -89,7 +97,7 @@ class MinibatchDiscrimination(nn.Module):
         self.T = nn.Parameter(
             torch.Tensor(in_features, out_features * intermediate_features)
         )
-        nn.init.normal_(self.T, 0, 1) # 使用正态分布初始化
+        nn.init.normal_(self.T, 0, 1)  # 使用正态分布初始化
 
     def forward(self, x):
         batch_size = x.size(0)
@@ -116,13 +124,15 @@ class MinibatchDiscrimination(nn.Module):
         combined = torch.cat([x, o_b], dim=1)
         return combined
 
+
 class CriticWithMinibatchDiscrimination(nn.Module):
     """带有Minibatch Discrimination的WGAN-GP评论家网络"""
+
     def __init__(
         self,
         image_size=8,
         dropout_rate=0.3,
-        mb_in_features=32, # MBD层的输入特征数，应与features模块输出一致
+        mb_in_features=32,  # MBD层的输入特征数，应与features模块输出一致
         mb_out_features=5,
         mb_intermediate_features=16,
     ):
@@ -140,7 +150,7 @@ class CriticWithMinibatchDiscrimination(nn.Module):
             nn.LayerNorm(64),
             nn.LeakyReLU(0.2),
             nn.Dropout(dropout_rate),
-            nn.Linear(64, mb_in_features), # 输出维度为MBD的输入维度
+            nn.Linear(64, mb_in_features),  # 输出维度为MBD的输入维度
             nn.LayerNorm(mb_in_features),
             nn.LeakyReLU(0.2),
         )
@@ -164,16 +174,19 @@ class CriticWithMinibatchDiscrimination(nn.Module):
                 m.bias.data.fill_(0)
 
     def forward(self, x):
-        x = x.view(x.size(0), -1) # 确保输入扁平化
+        x = x.view(x.size(0), -1)  # 确保输入扁平化
         features_out = self.features(x)
         mb_out = self.minibatch_discrimination(features_out)
         output = self.final_layer(mb_out)
         return output
 
+
 # --- Quantum Generators ---
+
 
 class PatchQuantumGenerator(nn.Module):
     """分块量子生成器基类 (由特定变体继承和修改)"""
+
     def __init__(
         self,
         n_qubits,
@@ -181,10 +194,10 @@ class PatchQuantumGenerator(nn.Module):
         q_depth,
         n_generators,
         device,
-        partial_measure, # 量子测量/后处理函数
+        partial_measure,  # 量子测量/后处理函数
         q_delta=1,
-        param_init_func=None, # 参数初始化函数
-        post_process_net=None # 经典后处理网络
+        param_init_func=None,  # 参数初始化函数
+        post_process_net=None,  # 经典后处理网络
     ):
         super().__init__()
         self.n_qubits = n_qubits
@@ -219,13 +232,22 @@ class PatchQuantumGenerator(nn.Module):
             # 创建张量以"捕获"来自单个子生成器的批量patch
             current_patches_batch = torch.Tensor(0, self.patch_size).to(self.device)
             # 对批次中的每个噪声样本应用量子电路
-            for noise_sample in x: # noise_sample shape: (n_qubits,)
+            for noise_sample in x:  # noise_sample shape: (n_qubits,)
                 # partial_measure 需要单个噪声向量和参数
-                q_out = self.partial_measure(noise_sample, params).float().unsqueeze(0) # shape: (1, patch_size)
-                current_patches_batch = torch.cat((current_patches_batch, q_out), dim=0) # shape: (current_batch_size, patch_size)
+                q_out = (
+                    self.partial_measure(noise_sample, params)
+                    .float()
+                    .unsqueeze(0)
+                    .to(self.device)
+                )  # shape: (1, patch_size)
+                current_patches_batch = torch.cat(
+                    (current_patches_batch, q_out), dim=0
+                )  # shape: (current_batch_size, patch_size)
 
             # 将当前子生成器的patch批次拼接到总输出
-            all_patches_batch = torch.cat((all_patches_batch, current_patches_batch), dim=1) # shape: (batch_size, n_generators * patch_size)
+            all_patches_batch = torch.cat(
+                (all_patches_batch, current_patches_batch), dim=1
+            )  # shape: (batch_size, n_generators * patch_size)
 
         # 如果有后处理网络，则应用
         if self.post_process_net:
@@ -239,14 +261,39 @@ class PatchQuantumGenerator(nn.Module):
 
 # --- Specific Generator Configurations ---
 
-def create_classic_qgan_generator(n_qubits, n_a_qubits, q_depth, n_generators, device, partial_measure_classic, q_delta=1):
+
+def create_classic_qgan_generator(
+    n_qubits,
+    n_a_qubits,
+    q_depth,
+    n_generators,
+    device,
+    partial_measure_classic,
+    q_delta=1,
+):
     """创建经典QGAN的生成器实例"""
     # 经典QGAN无特定后处理网络
     return PatchQuantumGenerator(
-        n_qubits, n_a_qubits, q_depth, n_generators, device, partial_measure_classic, q_delta
+        n_qubits,
+        n_a_qubits,
+        q_depth,
+        n_generators,
+        device,
+        partial_measure_classic,
+        q_delta,
     )
 
-def create_wgan_qgan_generator(n_qubits, n_a_qubits, q_depth, n_generators, device, partial_measure_wgan, q_delta=0.1, final_image_size=64):
+
+def create_wgan_qgan_generator(
+    n_qubits,
+    n_a_qubits,
+    q_depth,
+    n_generators,
+    device,
+    partial_measure_wgan,
+    q_delta=0.1,
+    final_image_size=64,
+):
     """创建WGAN-GP QGAN的生成器实例 (带后处理)"""
     # WGAN-GP 参数初始化
     param_init_wgan = lambda: q_delta * (2 * torch.rand(q_depth * n_qubits) - 1)
@@ -258,14 +305,21 @@ def create_wgan_qgan_generator(n_qubits, n_a_qubits, q_depth, n_generators, devi
         nn.LayerNorm(128),
         nn.LeakyReLU(0.2),
         nn.Linear(128, final_image_size),
-        nn.Tanh(), # 输出范围[-1,1]
+        nn.Tanh(),  # 输出范围[-1,1]
     )
 
     return PatchQuantumGenerator(
-        n_qubits, n_a_qubits, q_depth, n_generators, device, partial_measure_wgan, q_delta,
+        n_qubits,
+        n_a_qubits,
+        q_depth,
+        n_generators,
+        device,
+        partial_measure_wgan,
+        q_delta,
         param_init_func=param_init_wgan,
-        post_process_net=post_process_wgan.to(device) # 确保网络在正确设备上
+        post_process_net=post_process_wgan.to(device),  # 确保网络在正确设备上
     )
 
-# WGAN-GP with MBD 通常使用与 WGAN-GP 相同的生成器结构，可能调整超参数
+
+# WGAN-GP with MBD 通常使用与 WGAN-GP 相同的生成器结构
 create_wgan_mbd_qgan_generator = create_wgan_qgan_generator

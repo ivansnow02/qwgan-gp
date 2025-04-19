@@ -1,0 +1,7 @@
+[project]
+name = "qwgan-gp"
+version = "0.1.0"
+description = "QWGAN-GP"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["torch", "torchvision", "numpy", "matplotlib", "tensorboard", "ucimlrepo", "pennylane"]
